@@ -1,0 +1,125 @@
+lstm impl from deeplearning
+
+# THEANO_FLAGS="OMP_NUM_THREADS=3 floatX=float32" python lstm.py
+OMP_NUM_THREADS=4 python3 lstm.py
+
+
+==normal run==
+Epoch  0 Update  10 Cost  0.6980330265870004
+Epoch  0 Update  20 Cost  0.6899639479034024
+Epoch  0 Update  30 Cost  0.6939649439122783
+Epoch  0 Update  40 Cost  0.6944251677816926
+Epoch  0 Update  50 Cost  0.6873634347854766
+Epoch  0 Update  60 Cost  0.7048195657997988
+Epoch  0 Update  70 Cost  0.7100698414305137
+Epoch  0 Update  80 Cost  0.7242457772099679
+Epoch  0 Update  90 Cost  0.671829763378124
+
+
+otherrun:
+Epoch  0 Update  10 Cost  0.7410737075032265
+Epoch  0 Update  10 Cost  0.7354086513627175
+
+Train  -1 Valid  0.47619047619 Test  0.536
+Saving final... lstm_model_final.npz
+Train  -1 Valid  0.32380952381 Test  0.476
+Train  -1 Valid  0.32380952381 Test  0.476 Time: 14.83
+Train  -1 Valid  0.247619047619 Test  0.276
+Train  -1 Valid  0.247619047619 Test  0.276
+Train  -1 Valid  0.247619047619 Test  0.276
+OMP_NUM_THREADS=4 python3 lstm.py --max_epochs 0 --test_size 250 --valid_batch_size 250 --validFreq 100 --reload_model models/lstm_model2_final.npz
+Train  -1 Valid  0.247619047619 Test  0.276
+Train  -1 Valid  0.247619047619 Test  0.276
+Train  -1 Valid  0.858506794056 Test  0.36
+OMP_NUM_THREADS=4 python3 lstm.py --max_epochs 0 --test_size 250 --valid_batch_size 250 --validFreq 100 --reload_model models/lstm_model2_final.npz --maxlen 100
+Train  -1 Valid  0.247619047619 Test  0.276
+
+
+# new model
+OMP_NUM_THREADS=4 python3 lstm.py --max_epochs 50 --test_size 250 --valid_batch_size 250 --validFreq 100 --saveto models/lstm_model3 --dim_proj 100 --n_words 100000  --batch_size 20
+Epoch  0 Update  10 Cost  0.6954074976018151
+Train  -1 Valid  0.904076094515 Test  0.496 Time: 12.95
+Epoch  3 Update  3700 Cost  0.6970723892944815
+Train  -1 Valid  0.904076094516 Test  0.492 Time: 18.39
+Early Stop!
+
+# using glove (word match might be off)
+OMP_NUM_THREADS=4 python3 lstm.py --max_epochs 50 --test_size 250 --valid_batch_size 250 --validFreq 100 --saveto models/lstm_model3 --dim_proj 100 --n_words 100000  --batch_size 20  --glovePath /home/neerbek/jan/phd/DLP/paraphrase/code/glove/
+23750 train examples
+1250 valid examples
+250 test examples
+Epoch  0 Update  10 Cost  0.6920294375341577
+Train  -1 Valid  0.894485056564 Test  0.504 Time: 21.07
+# very similar to exp1
+Epoch  3 Update  3700 Cost  0.28478049726014215
+Train  -1 Valid  0.829727893077 Test  0.208 Time: 14.82
+# marked different from exp1. word vectors help!
+# valid error is high but test error is low...
+Epoch  6 Update  7300 Cost  0.2245299540427088
+Train  -1 Valid  0.826530445915 Test  0.176 Time: 21.62
+Early Stop!
+Saving final... models/lstm_model3_final.npz
+
+# exp2
+OMP_NUM_THREADS=4 python3 lstm.py --max_epochs 50 --test_size 250 --valid_batch_size 250 --validFreq 100 --saveto models/save_lstm_exp2 --dim_proj 100 --n_words 100000  --batch_size 20  --glovePath /home/neerbek/jan/phd/DLP/paraphrase/code/glove/ --dataset mon0
+5605 train examples
+295 valid examples
+250 test examples
+Epoch  0 Update  10 Cost  0.6864988689510878
+Train  -1 Valid  0.92695202528 Test  0.46 Time: 1.92
+Epoch  8 Update  2500 Cost  0.14184586490569456
+Train  -1 Valid  0.880367710428 Test  0.152 Time: 1.27
+# nice
+Epoch  14 Update  4100 Cost  0.4152430142555101
+Train  -1 Valid  0.873691467969 Test  0.192 Time: 1.33
+Saving final... models/save_lstm_exp2_final.npz
+
+OMP_NUM_THREADS=4 python3 lstm.py --max_epochs 0 --test_size 250 --valid_batch_size 250 --validFreq 100 --dim_proj 100 --n_words 100000  --batch_size 20  --glovePath /home/neerbek/jan/phd/DLP/paraphrase/code/glove/ --dataset mon0 --reload_model models/save_lstm_exp2_best.npz
+Train  -1 Valid  0.870232691755 Test  0.192
+
+# run with full test set and full word embedding
+
+==documentation==
+to load a model set param reload_model
+to only calc error set maxEpochs=0
+1 validation run seems as expensive as one train round (i.e. minimize validation runs)
+saving is fast
+calc err on train adds ~8% to runtime
+train_err is weird, close to 1? but calculated the same way as dev and test
+I think the optimizer (adagrad) uses the dev set to "guide" the training
+It would seem that the input is a sentence of numbers (1 == word1, 2 == word2, etc.)
+This is projected to a random embedding in lstm.init_params and stored in Wemb
+
+==todo==
+load my data
+
+
+
+===runtimes===
+OMP_NUM_THREADS=4 python3 lstm.py
+with
+    validFreq = 100
+    testSize = 250
+    maxEpochs = 2
+    train_lstm(
+        saveto="lstm_model",
+        saveFreq=2 * validFreq,
+        max_epochs=maxEpochs,
+        test_size=testSize,
+        valid_batch_size=testSize,  # The batch size used for validation/test set.
+        validFreq=validFreq,  # Compute the validation error after this number of update.
+        lrate=0.0001,  # Learning rate for sgd (not used for adadelta and rmsprop)
+        n_words=30000,  # Vocabulary size
+    )
+
+
+And not saving             : The code run for 2 epochs, with 29.82 sec/epochs
+Saving+not calc train err  : The code run for 2 epochs, with 29.87 sec/epochs, 29.69, 29.71
+Saving+calc train err      : The code run for 2 epochs, with 32.22 sec/epochs, 31.93
+
+
+
+
+==DONE==
+load model run on data
+set parameters command line

@@ -1,0 +1,7 @@
+[
+    {"jobid": "exp137", "param": ["-inputfile", "output/kmeans_embeddingsC2_multi.txt", "-inputdevfile", "output/kmeans_embeddings2C2_multi.txt", "-retain_probability", "1", "-hiddenLayerSize", "200", "-numberOfHiddenLayers", "2", "-learnRate", "1.05", "-momentum", "0.0009", "-trainReportFrequency", "32", "-validationFrequency", "1", "-nEpochs", "100", "-randomSeed", "6414", "-batchSize", "50", "-L1param", "0.65"]}
+]
+
+
+
+
