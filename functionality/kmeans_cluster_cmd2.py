@@ -28,18 +28,7 @@ low = 16
 high = 27
 doShow = False
 targetClass = 2
-trainParam = rnn_model.FlatTrainer.TrainParam()
-trainParam.retain_probability = 0.9
-trainParam.batchSize = 500
 randomSeed = 7485
-hiddenLayerSize = 150
-numberOfHiddenLayers = 2
-nEpochs = 5 * 128
-trainReportFrequency = 32 * 72
-validationFrequency = 64 * 72
-inputmodel = None
-# inputmodel is None
-filePrefix = "save"
 learnRate = 0.5
 momentum = 0.0
 
@@ -49,39 +38,27 @@ totaltimer.begin()
 
 
 def syntax():
-    print("""syntax: kmeans_cluster_cmd.py
+    print("""syntax: kmeans_cluster_cmd2.py
 -inputfile <filename> | -numberOfClusters <int> | -low <int> | -high <int> |
 -doShow | -targetClass <int> | -retain_probability <float> | -batchSize <int> |
--randomSeed <int> | -hiddenLayerSize <int> | -numberOfHiddenLayers <int> | -nEpochs <int> | -learnRate <float> | -momentum <float> |
--trainReportFrequency <int> | -validationFrequency <int> |
--inputmodel <filename> | filePrefix <string>
-    [-h | --help | -?]
+-randomSeed <int> | [-h | --help | -?]
 
 -inputfile is a list of final sentence embeddings in the format of run_model_verbose.py
--inputmodel is an optioal previous saved set of parameters for the NN model which will be loaded
 -numberOfClusters - how many clusters to generate with kmeans
 -low is low cutoff in clustering
 -high is high cutoff in clustering
 -doShow - show a graph of sensitivity scores for generated clusters
 -targetClass (0=all data, 1=lower group, 2=middle group, 3=high group)
 
--retain_probability the probability of a neuron NOT being dropped in dropout
--batchSize the number of embeddings trained in a minibatch
 -randomSeed initialize the random number generator
--hiddenLayerSize number of neurons in the hidden layer(s)
--numberOfHiddenLayers number of hidden layers
--nEpochs number of complete loops of the training data to do
--learnRate - learnrate for gradient (w/o momentum) learner
--momentum - momentum for gradient (with momentum) learner
--trainReportFrequency - number of minibatches to do before outputting progress on training set
--validationFrequency - number of minibatches to do before outputting progress on validation set
--filePrefix is a prefix added to all saved model parameters in this run
+
+kmeans_cluster_cmd2 fits a kmeans model to train set and applies this (predicts) the clustering on the second dataset (dev or test)
 """)
     sys.exit()
 
 
 arglist = sys.argv
-# arglist = "kmeans_cluster_cmd.py -inputfile ../../taboo-core/output_embeddings.txt -numberOfClusters 35 -low 16 -high 27 -retain_probability 0.9 -hiddenLayerSize 150 -numberOfHiddenLayers 3 -filePrefix save -learnRate 0.01 -momentum 0 -trainReportFrequency 450 -validationFrequency 900 -nEpochs 400 -randomSeed 37624".split(" ")
+# arglist = "kmeans_cluster_cmd2.py -inputfile ../../taboo-core/output_embeddings.txt -numberOfClusters 35 -low 16 -high 27 -randomSeed 37624".split(" ")
 argn = len(arglist)
 
 i = 1
@@ -106,30 +83,8 @@ while i < argn:
         high = int(arg)
     elif setting == '-targetClass':
         targetClass = int(arg)
-    elif setting == '-retain_probability':
-        retain_probability = float(arg)
     elif setting == '-randomSeed':
         randomSeed = int(arg)
-    elif setting == '-batchSize':
-        trainParam.batchSize = int(arg)
-    elif setting == '-hiddenLayerSize':
-        hiddenLayerSize = int(arg)
-    elif setting == '-numberOfHiddenLayers':
-        numberOfHiddenLayers = int(arg)
-    elif setting == '-nEpochs':
-        nEpochs = int(arg)
-    elif setting == '-learnRate':
-        learnRate = float(arg)
-    elif setting == '-momentum':
-        momentum = float(arg)
-    elif setting == '-trainReportFrequency':
-        trainReportFrequency = int(arg)
-    elif setting == '-validationFrequency':
-        validationFrequency = int(arg)
-    elif setting == '-inputmodel':
-        inputmodel = arg
-    elif setting == '-filePrefix':
-        filePrefix = arg
     else:
         # expected option with no argument
         if setting == '-help':
