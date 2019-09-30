@@ -24,6 +24,7 @@ import kmeans_cluster_util as kutil
 inputfile = "output/kmeans_embeddingsC1.txt"
 inputdevfile = "output/kmeans_embeddings2C1.txt"
 extradata = None
+runOnly = False
 
 trainParam = rnn_model.FlatTrainer.TrainParam()
 trainParam.retain_probability = 0.9
@@ -48,7 +49,7 @@ def syntax():
 -inputfile <filename> | -inputdevfile <filename> | -extradata <file> |-retain_probability <float> |
 -batchSize <int> | -randomSeed <int> | -hiddenLayerSize <int> | -numberOfHiddenLayers <int> |
 -nEpochs <int> | -learnRate <float> | -momentum <float> | -trainReportFrequency <int> |
--validationFrequency <int> | -inputmodel <filename> | filePrefix <string> |
+-validationFrequency <int> | -inputmodel <filename> | filePrefix <string> | -runOnly
 -h | --help | -?
 
 -inputfile is a list of final sentence embeddings in the format of run_model_verbose.py
@@ -71,6 +72,7 @@ def syntax():
 -trainReportFrequency - number of minibatches to do before outputting progress on training set
 -validationFrequency - number of minibatches to do before outputting progress on validation set
 -filePrefix is a prefix added to all saved model parameters in this run
+-runOnly do not train only validates
 """)
     sys.exit()
 
@@ -135,6 +137,8 @@ while i < argn:
             syntax()
         elif setting == '-h':
             syntax()
+        elif setting == '-runOnly':
+            runOnly = True
         else:
             msg = "unknown option: " + setting
             print(msg)
@@ -177,6 +181,8 @@ trainParam.valY = jan_ai_util.lines2multiclassification(lines2, classes=[0, 4])
 trainParam.learner = rnn_model.learn.GradientDecentWithMomentumLearner(lr=learnRate, mc=momentum)
 
 inputSize = trainParam.X.shape[1]
+
+
 def buildModel(isDropoutEnabled, rng=RandomState(randomSeed)):
     model = rnn_model.FlatTrainer.RNNContainer(nIn=inputSize, isDropoutEnabled=isDropoutEnabled, rng=rng)
     for i in range(numberOfHiddenLayers):
@@ -194,7 +200,7 @@ validationModel = buildModel(False)
 
 # actual training
 timers.traintimer.begin()
-rnn_model.FlatTrainer.train(trainParam, model, validationModel, n_epochs=nEpochs, trainReportFrequency=trainReportFrequency, validationFrequency=validationFrequency, file_prefix=filePrefix, rng=rng)
+rnn_model.FlatTrainer.train(trainParam, model, validationModel, n_epochs=nEpochs, trainReportFrequency=trainReportFrequency, validationFrequency=validationFrequency, file_prefix=filePrefix, rng=rng, runOnly=runOnly)
 
 # done
 timers.endAndReport()
