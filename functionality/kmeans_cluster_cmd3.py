@@ -5,7 +5,7 @@ Created on October 3, 2017
 
 @author:  neerbek
 
-Trains a RNN flat model on input list of trees and encodings
+Trains a RNN flat model on input list of trees and embeddings
 """
 import sys
 from numpy.random import RandomState  # type: ignore
