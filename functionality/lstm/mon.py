@@ -14,6 +14,7 @@ import similarity.load_trees as load_trees
 
 from rnn_enron import NodeCounter
 
+
 # copied from rnn_enron
 def updateWordVectors(node, wordEmbMap, nodeCounter):
     # assumes is_binary and has_only_words_at_leafs
@@ -50,6 +51,7 @@ def updateWordVectors(node, wordEmbMap, nodeCounter):
         updateWordVectors(node.left, wordEmbMap, nodeCounter)
         updateWordVectors(node.right, wordEmbMap, nodeCounter)
 
+
 # copied from rnn_enron
 def initializeTrees(trees, wordEmbMap):
     totalCounter = NodeCounter()
@@ -70,11 +72,13 @@ def initializeTrees(trees, wordEmbMap):
         format(totalCounter.node_count, totalCounter.word_count,
                totalCounter.unknown_count, totalCounter.getRatio()))
 
+
 class WordEmb:
     def __init__(self, number, word, representation):
         self.number = number
         self.word = word
         self.representation = representation
+
 
 def getListOfWordRepresentations(t, res):
     if t is None:
@@ -84,6 +88,7 @@ def getListOfWordRepresentations(t, res):
     else:
         getListOfWordRepresentations(t.left, res)
         getListOfWordRepresentations(t.right, res)
+
 
 def treesToLSTMFormat(trees, sortByLen, maxLen):
     res_x = []  # type: List[List[float]]
@@ -106,6 +111,7 @@ def treesToLSTMFormat(trees, sortByLen, maxLen):
 
     return (res_x, res_y)
 
+
 def loadEmbeddings(glovePath, nWords, nx):
     rng = RandomState(1234)  # for unknown emb
 
@@ -118,13 +124,20 @@ def loadEmbeddings(glovePath, nWords, nx):
         wordEmbMap[w] = wordEmb
     return wordEmbMap
 
+
 class MonsantoData:
     def __init__(self, path, wordEmbMap, useTestTrees=False):
         self.path = path
         self.wordEmbMap = wordEmbMap
         self.testTreeName = "$dev.txt"
         if useTestTrees:
+            print("Using real test trees for test")
             self.testTreeName = "$test.txt"
+        else:
+            print("Using our DEV trees for test (and fake dev trees for lstm dev)")
+        # Why: because LSTM internally look at the dev set and thus " cheat"/"pollute" the dev set
+        # Thus our dev set is more like a test set and we use it as such
+        # However we need to evaluate the models on the REAL test also, hence the flag useTestTrees
 
     def loadData(self, path=None,
                  n_words=100000, valid_portion=0.1, maxlen=None, sortByLen=False):

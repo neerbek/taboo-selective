@@ -18,6 +18,9 @@ from collections import OrderedDict
 import time
 
 import numpy
+# os.environ["OMP_NUM_THREADS"] = "1"
+# (setenv "OMP_NUM_THREADS" "1")
+# os.chdir(os.path.join(os.getenv("HOME"), "jan/taboo/taboo-selective/functionality/lstm/"))
 import theano
 from theano import config
 import theano.tensor as tensor
@@ -31,6 +34,7 @@ datasets = {}
 # Set the random number generators' seeds for consistency
 SEED = 3984754
 numpy.random.seed(SEED)
+
 
 def numpy_floatX(data):
     return numpy.asarray(data, dtype=config.floatX)
@@ -85,7 +89,7 @@ def unzip(zipped):
 def dropout_layer(state_before, use_noise, trng):
     retain = 0.5
     proj = tensor.switch(use_noise,
-                         (state_before *
+                         (state_before *  # noqa: W504
                           trng.binomial(state_before.shape,
                                         p=retain, n=1,
                                         dtype=state_before.dtype)),
@@ -206,7 +210,7 @@ def lstm_layer(tparams, state_below, options, prefix='lstm', mask=None):
 
         return h, c
 
-    state_below = (tensor.dot(state_below, tparams[_p(prefix, 'W')]) +
+    state_below = (tensor.dot(state_below, tparams[_p(prefix, 'W')]) +  # noqa: W504
                    tparams[_p(prefix, 'b')])
 
     dim_proj = options['dim_proj']
@@ -482,7 +486,6 @@ def train_lstm(
         batch_size=16,  # The batch size during training.
         valid_batch_size=64,  # The batch size used for validation/test set.
         dataset='imdb',
-
         # Parameter for extra option
         noise_std=0.,
         use_dropout=True,  # if False slightly faster, but worst test error
@@ -507,7 +510,7 @@ def train_lstm(
         wEmb = numpy.array(wEmbArray)
 
     datasets["imdb"] = (imdb.load_data, imdb.prepare_data)
-    monPath = "/home/neerbek/jan/phd/DLP/Monsanto/data_monsanto/trees/20180418/"
+    monPath = os.path.join(os.getenv("HOME"), "jan/ProjectsData/phd/DLP/Monsanto/data/trees/20191015c")
     monData = mon.MonsantoData(os.path.join(monPath, "trees0.zip"), wordEmbMap)
     datasets["mon0"] = (monData.loadData, imdb.prepare_data)
     monData = mon.MonsantoData(os.path.join(monPath, "trees1.zip"), wordEmbMap)
@@ -519,7 +522,10 @@ def train_lstm(
 
     load_data, prepare_data = get_dataset(dataset)
 
-    print('Loading data')
+    if not dataset.startswith("mon"):
+        print('Loading data {}'.format(dataset))
+    else:
+        print('Loading data {} {}'.format(dataset, monPath))
     train, valid, test = load_data(n_words=n_words, valid_portion=valid_portion,
                                    maxlen=maxlen)
     if test_size > 0:
@@ -599,6 +605,7 @@ def train_lstm(
             # Get new shuffled index for the training set.
             kf = get_minibatches_idx(len(train[0]), batch_size, shuffle=True)
 
+            epoch_start_time = time.time()
             for _, train_index in kf:
                 uidx += 1
                 use_noise.set_value(1.)
@@ -618,7 +625,7 @@ def train_lstm(
 
                 if numpy.isnan(cost) or numpy.isinf(cost):
                     print('bad cost detected: ', cost)
-                    return 1., 1., 1.
+                    raise Exception('bad cost detected: {}'.format(cost))
 
                 if numpy.mod(uidx, dispFreq) == 0:
                     print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
@@ -675,7 +682,8 @@ def train_lstm(
                     #         estop = True
                     #         break
 
-            print('Seen %d samples' % n_samples)
+            epoch_end_time = time.time()
+            print('Epoch done. Seen {} samples. Time {:.2f}'.format(n_samples, epoch_end_time - epoch_start_time))
 
             if estop:
                 break
@@ -742,7 +750,8 @@ if __name__ == '__main__':
 
     # parse input
     argv = sys.argv[1:]  # first arg is filename
-    # argv = "--max_epochs 0 --test_size 250 --valid_batch_size 250 --validFreq 100 --reload_model models/lstm_model2_final.npz".split()
+    # print("WARN using debug args!")
+    # argv = "--max_epochs 100 --test_size 250 --valid_batch_size 250 --validFreq 100 --dataset=mon1 --dim_proj 100 --glovePath /home/jneerbek/jan/ProjectsData/GloveWordEmb --valid_portion 0.12".split()
     try:
         opts, args = getopt.getopt(argv, "h", ["help", "dim_proj=", "max_epochs=", "dispFreq=", "lrate=", "n_words=", "optimizer=", "saveto=", "validFreq=", "saveFreq=", "maxlen=", "batch_size=", "valid_batch_size=", "dataset=", "reload_model=", "test_size=", "glovePath=", "valid_portion="])
     except getopt.GetoptError:
@@ -793,6 +802,13 @@ if __name__ == '__main__':
         elif opt in ("--valid_portion"):
             valid_portion = float(arg)
 
+    # DEBUG
+    encoder = 'lstm'
+    patience = 10  # Number of epoch to wait before early stop if no progress
+    decay_c = 0.  # Weight decay for the classifier applied to the U weights.
+    noise_std = 0.
+    use_dropout = True  # if False slightly faster, but worst test error
+
     train_lstm(
         dim_proj=dim_proj,
         max_epochs=max_epochs,
@@ -810,6 +826,6 @@ if __name__ == '__main__':
         reload_model=reload_model,
         test_size=test_size,
         glovePath=glovePath,
-        valid_portion=valid_portion
+        valid_portion=valid_portion,
     )
 
