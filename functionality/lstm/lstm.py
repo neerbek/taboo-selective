@@ -31,11 +31,6 @@ import mon
 
 datasets = {}
 
-# Set the random number generators' seeds for consistency
-SEED = 3984754
-numpy.random.seed(SEED)
-
-
 def numpy_floatX(data):
     return numpy.asarray(data, dtype=config.floatX)
 
@@ -386,8 +381,8 @@ def rmsprop(lr, tparams, grads, x, mask, y, cost):
     return f_grad_shared, f_update
 
 
-def build_model(tparams, options):
-    trng = RandomStreams(SEED)
+def build_model(tparams, options, randomSeed):
+    trng = RandomStreams(randomSeed)
 
     # Used for dropout.
     use_noise = theano.shared(numpy_floatX(0.))
@@ -493,7 +488,9 @@ def train_lstm(
         reload_model=None,  # Path to a saved model we want to start from.
         test_size=-1,  # If >0, we keep only this number of test example.
         glovePath=None,
-        valid_portion=0.05  # fraction of train set to be used as validation/dev set
+        valid_portion=0.05,  # fraction of train set to be used as validation/dev set
+        runOnly=False,
+        randomSeed=None
 ):
 
     # Model options
@@ -519,6 +516,30 @@ def train_lstm(
     datasets["mon2"] = (monData.loadData, imdb.prepare_data)
     monData = mon.MonsantoData(os.path.join(monPath, "trees3.zip"), wordEmbMap)
     datasets["mon3"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees0.zip"), wordEmbMap, useTestTrees=True)
+    datasets["mon0t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees1.zip"), wordEmbMap, useTestTrees=True)
+    datasets["mon1t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees2.zip"), wordEmbMap, useTestTrees=True)
+    datasets["mon2t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees3.zip"), wordEmbMap, useTestTrees=True)
+    datasets["mon3t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees0.zip"), wordEmbMap, manualSensitive=True)
+    datasets["mon0ms"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees1.zip"), wordEmbMap, manualSensitive=True)
+    datasets["mon1ms"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees2.zip"), wordEmbMap, manualSensitive=True)
+    datasets["mon2ms"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees3.zip"), wordEmbMap, manualSensitive=True)
+    datasets["mon3ms"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees0.zip"), wordEmbMap, useTestTrees=True, manualSensitive=True)
+    datasets["mon0ms_t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees1.zip"), wordEmbMap, useTestTrees=True, manualSensitive=True)
+    datasets["mon1ms_t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees2.zip"), wordEmbMap, useTestTrees=True, manualSensitive=True)
+    datasets["mon2ms_t"] = (monData.loadData, imdb.prepare_data)
+    monData = mon.MonsantoData(os.path.join(monPath, "trees3.zip"), wordEmbMap, useTestTrees=True, manualSensitive=True)
+    datasets["mon3ms_t"] = (monData.loadData, imdb.prepare_data)
 
     load_data, prepare_data = get_dataset(dataset)
 
@@ -557,7 +578,7 @@ def train_lstm(
 
     # use_noise is for dropout
     (use_noise, x, mask,
-     y, f_pred_prob, f_pred, cost) = build_model(tparams, model_options)
+     y, f_pred_prob, f_pred, cost) = build_model(tparams, model_options, randomSeed=randomSeed)
 
     if decay_c > 0.:
         decay_c = theano.shared(numpy_floatX(decay_c), name='decay_c')
@@ -598,98 +619,99 @@ def train_lstm(
     start_time = time.time()
     time_in_validation = 0
     eidx = 0
-    try:
-        for eidx in range(max_epochs):
-            n_samples = 0
+    if not runOnly:
+        try:
+            for eidx in range(max_epochs):
+                n_samples = 0
 
-            # Get new shuffled index for the training set.
-            kf = get_minibatches_idx(len(train[0]), batch_size, shuffle=True)
+                # Get new shuffled index for the training set.
+                kf = get_minibatches_idx(len(train[0]), batch_size, shuffle=True)
 
-            epoch_start_time = time.time()
-            for _, train_index in kf:
-                uidx += 1
-                use_noise.set_value(1.)
+                epoch_start_time = time.time()
+                for _, train_index in kf:
+                    uidx += 1
+                    use_noise.set_value(1.)
 
-                # Select the random examples for this minibatch
-                y = [train[1][t] for t in train_index]
-                x = [train[0][t]for t in train_index]
+                    # Select the random examples for this minibatch
+                    y = [train[1][t] for t in train_index]
+                    x = [train[0][t]for t in train_index]
 
-                # Get the data in numpy.ndarray format
-                # This swap the axis!
-                # Return something of shape (minibatch maxlen, n samples)
-                x, mask, y = prepare_data(x, y)
-                n_samples += x.shape[1]
+                    # Get the data in numpy.ndarray format
+                    # This swap the axis!
+                    # Return something of shape (minibatch maxlen, n samples)
+                    x, mask, y = prepare_data(x, y)
+                    n_samples += x.shape[1]
 
-                cost = f_grad_shared(x, mask, y)
-                f_update(lrate)
+                    cost = f_grad_shared(x, mask, y)
+                    f_update(lrate)
 
-                if numpy.isnan(cost) or numpy.isinf(cost):
-                    print('bad cost detected: ', cost)
-                    raise Exception('bad cost detected: {}'.format(cost))
+                    if numpy.isnan(cost) or numpy.isinf(cost):
+                        print('bad cost detected: ', cost)
+                        raise Exception('bad cost detected: {}'.format(cost))
 
-                if numpy.mod(uidx, dispFreq) == 0:
-                    print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
+                    if numpy.mod(uidx, dispFreq) == 0:
+                        print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
 
-                if saveto and numpy.mod(uidx, saveFreq) == 0:
-                    if best_p is None:
+                    if saveto and numpy.mod(uidx, saveFreq) == 0:
+                        if best_p is None:
+                            params = unzip(tparams)
+                        else:
+                            params = best_p
+                        name = "{}_best.npz".format(saveto)
+                        print('Saving best... ' + name)
+                        numpy.savez(name, history_errs=history_errs, **params)
+                        pickle.dump(model_options, open("{}_best_options.pkl".format(saveto), 'wb'), -1)
+                        name = "{}_running.npz".format(saveto)
+                        print('Saving current... ' + name)
                         params = unzip(tparams)
-                    else:
-                        params = best_p
-                    name = "{}_best.npz".format(saveto)
-                    print('Saving best... ' + name)
-                    numpy.savez(name, history_errs=history_errs, **params)
-                    pickle.dump(model_options, open("{}_best_options.pkl".format(saveto), 'wb'), -1)
-                    name = "{}_running.npz".format(saveto)
-                    print('Saving current... ' + name)
-                    params = unzip(tparams)
-                    numpy.savez(name, history_errs=history_errs, **params)
-                    pickle.dump(model_options, open("{}_running_options.pkl".format(saveto), 'wb'), -1)
-                    print('Done')
+                        numpy.savez(name, history_errs=history_errs, **params)
+                        pickle.dump(model_options, open("{}_running_options.pkl".format(saveto), 'wb'), -1)
+                        print('Done')
 
-                if numpy.mod(uidx, validFreq) == 0:
-                    val_start_time = time.time()
+                    if numpy.mod(uidx, validFreq) == 0:
+                        val_start_time = time.time()
 
-                    use_noise.set_value(0.)
-                    # without idx's: 21s/epoch
-                    # with idx's: 34.92s/epoch
-                    # kf = get_minibatches_idx(len(train[0]), batch_size)
-                    kf_valid = get_minibatches_idx(len(valid[0]), valid_batch_size)
-                    kf_test = get_minibatches_idx(len(test[0]), valid_batch_size)
-                    # train_err = pred_error(f_pred, prepare_data, train, kf)
-                    train_err = -1
-                    valid_err = pred_error(f_pred, prepare_data, valid,
-                                           kf_valid)
-                    test_err = pred_error(f_pred, prepare_data, test, kf_test)
+                        use_noise.set_value(0.)
+                        # without idx's: 21s/epoch
+                        # with idx's: 34.92s/epoch
+                        # kf = get_minibatches_idx(len(train[0]), batch_size)
+                        kf_valid = get_minibatches_idx(len(valid[0]), valid_batch_size)
+                        kf_test = get_minibatches_idx(len(test[0]), valid_batch_size)
+                        # train_err = pred_error(f_pred, prepare_data, train, kf)
+                        train_err = -1
+                        valid_err = pred_error(f_pred, prepare_data, valid,
+                                               kf_valid)
+                        test_err = pred_error(f_pred, prepare_data, test, kf_test)
 
-                    history_errs.append([valid_err, test_err])
+                        history_errs.append([valid_err, test_err])
 
-                    best_test_err = numpy.array(history_errs)[:, 1].min()
-                    if best_p is None or test_err <= best_test_err:
-                        # we use test_err because we store validation data there
-                        best_p = unzip(tparams)
-                        bad_counter = 0
+                        best_test_err = numpy.array(history_errs)[:, 1].min()
+                        if best_p is None or test_err <= best_test_err:
+                            # we use test_err because we store validation data there
+                            best_p = unzip(tparams)
+                            bad_counter = 0
 
-                    val_end_time = time.time()
-                    time_in_validation += val_end_time - val_start_time
-                    print('Errors: Train {:.4f} Valid {:.4f}'.format(train_err, valid_err), 'Test (best) {:.4f} ({:.4f})'.format(test_err, best_test_err), "Time: {:.2f}".format(val_end_time - val_start_time))
+                        val_end_time = time.time()
+                        time_in_validation += val_end_time - val_start_time
+                        print('Errors: Train {:.4f} Valid {:.4f}'.format(train_err, valid_err), 'Test (best) {:.4f} ({:.4f})'.format(test_err, best_test_err), "Time: {:.2f}".format(val_end_time - val_start_time))
 
-                    # if (len(history_errs) > patience and
-                    #     test_err >= numpy.array(history_errs)[:-patience,
-                    #                                           1].min()):
-                    #     bad_counter += 1
-                    #     if bad_counter > patience:
-                    #         print('Early Stop!')
-                    #         estop = True
-                    #         break
+                        # if (len(history_errs) > patience and
+                        #     test_err >= numpy.array(history_errs)[:-patience,
+                        #                                           1].min()):
+                        #     bad_counter += 1
+                        #     if bad_counter > patience:
+                        #         print('Early Stop!')
+                        #         estop = True
+                        #         break
 
-            epoch_end_time = time.time()
-            print('Epoch done. Seen {} samples. Time {:.2f}'.format(n_samples, epoch_end_time - epoch_start_time))
+                epoch_end_time = time.time()
+                print('Epoch done. Seen {} samples. Time {:.2f}'.format(n_samples, epoch_end_time - epoch_start_time))
 
-            if estop:
-                break
+                if estop:
+                    break
 
-    except KeyboardInterrupt:
-        print("Training interupted")
+        except KeyboardInterrupt:
+            print("Training interupted")
 
     end_time = time.time()
     if best_p is not None:
@@ -712,7 +734,7 @@ def train_lstm(
     print('Best model: Errors: Train {:.4f} Valid {:.4f}'.format(train_err, valid_err), 'Test (best) {:.4f} ({:.4f})'.format(test_err, best_test_err))
     # print('Train ', 'N/A', 'Valid ', valid_err, 'Test ', test_err)
 
-    if saveto:
+    if saveto and not runOnly:
         params = unzip(tparams)
         name = "{}_final.npz".format(saveto)
         print('Saving final...', name)
@@ -744,16 +766,20 @@ if __name__ == '__main__':
     dataset = "imdb"
     # use_dropout           # if False slightly faster, but worst test error
     reload_model = None     # Path to a saved model we want to start from.
-    test_size = 500         # If >0, we keep only this number of test example.
+    test_size = -1         # If >0, we keep only this number of test example.
     glovePath = None
     valid_portion = 0.05
+    runOnly = False
+    # Set the random number generators' seeds for consistency
+    # SEED = 3984754
+    SEED = None
 
     # parse input
     argv = sys.argv[1:]  # first arg is filename
     # print("WARN using debug args!")
     # argv = "--max_epochs 100 --test_size 250 --valid_batch_size 250 --validFreq 100 --dataset=mon1 --dim_proj 100 --glovePath /home/jneerbek/jan/ProjectsData/GloveWordEmb --valid_portion 0.12".split()
     try:
-        opts, args = getopt.getopt(argv, "h", ["help", "dim_proj=", "max_epochs=", "dispFreq=", "lrate=", "n_words=", "optimizer=", "saveto=", "validFreq=", "saveFreq=", "maxlen=", "batch_size=", "valid_batch_size=", "dataset=", "reload_model=", "test_size=", "glovePath=", "valid_portion="])
+        opts, args = getopt.getopt(argv, "h", ["help", "dim_proj=", "max_epochs=", "dispFreq=", "lrate=", "n_words=", "optimizer=", "saveto=", "validFreq=", "saveFreq=", "maxlen=", "batch_size=", "valid_batch_size=", "dataset=", "reload_model=", "test_size=", "glovePath=", "valid_portion=", "runOnly", "randomSeed="])
     except getopt.GetoptError:
         usage(exitCode=2)
 
@@ -801,7 +827,16 @@ if __name__ == '__main__':
             glovePath = arg
         elif opt in ("--valid_portion"):
             valid_portion = float(arg)
+        elif opt in ["--runOnly"]:
+            runOnly = True
+        elif opt in ["--randomSeed"]:
+            SEED = int(arg)
 
+    if SEED is None:
+        numpy.random.seed()
+        SEED = numpy.random.randint(1000000)
+    print("randomSeed: {}".format(SEED))
+    numpy.random.seed(SEED)
     # DEBUG
     encoder = 'lstm'
     patience = 10  # Number of epoch to wait before early stop if no progress
@@ -827,5 +862,7 @@ if __name__ == '__main__':
         test_size=test_size,
         glovePath=glovePath,
         valid_portion=valid_portion,
+        runOnly=runOnly,
+        randomSeed=SEED
     )
 

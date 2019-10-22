@@ -126,13 +126,19 @@ def loadEmbeddings(glovePath, nWords, nx):
 
 
 class MonsantoData:
-    def __init__(self, path, wordEmbMap, useTestTrees=False):
+    def __init__(self, path, wordEmbMap, useTestTrees=False, manualSensitive=False):
         self.path = path
         self.wordEmbMap = wordEmbMap
+        self.trainTreeName = "$train.txt"
         self.testTreeName = "$dev.txt"
+        if manualSensitive:
+            self.trainTreeName = "$train_manual_sensitive.txt"
+            self.testTreeName = "$dev_manual_sensitive.txt"
         if useTestTrees:
             print("Using real test trees for test")
             self.testTreeName = "$test.txt"
+            if manualSensitive:
+                self.testTreeName = "$test_manual_sensitive.txt"
         else:
             print("Using our DEV trees for test (and fake dev trees for lstm dev)")
         # Why: because LSTM internally look at the dev set and thus " cheat"/"pollute" the dev set
@@ -143,7 +149,7 @@ class MonsantoData:
                  n_words=100000, valid_portion=0.1, maxlen=None, sortByLen=False):
         validPortion = valid_portion
         maxLen = maxlen
-        train_trees = load_trees.get_trees(file=self.path + "$train.txt", max_count=-1)
+        train_trees = load_trees.get_trees(file=self.path + self.trainTreeName, max_count=-1)
         ratio = int(validPortion * len(train_trees))
         valid_trees = train_trees[:ratio]
         train_trees = train_trees[ratio:]
