@@ -29,7 +29,8 @@ runOnly = False
 trainParam = rnn_model.FlatTrainer.TrainParam()
 trainParam.retain_probability = 0.9
 trainParam.batchSize = 500
-randomSeed = 7485
+# randomSeed = 7485
+randomSeed = None
 hiddenLayerSize = 150
 numberOfHiddenLayers = 2
 nEpochs = 5 * 128
@@ -156,6 +157,10 @@ a1 = confusion_matrix.get_embedding_matrix(lines, normalize=True)
 lines2 = confusion_matrix.read_embeddings(inputdevfile, max_line_count=-1)
 a2 = confusion_matrix.get_embedding_matrix(lines2, normalize=True)
 
+if randomSeed is None:
+    rng = RandomState()
+    randomSeed = rng.randint(10000000)
+print("Using randomSeed: {}".format(randomSeed))
 rng = RandomState(randomSeed)
 
 print(len(lines), len(lines2))
