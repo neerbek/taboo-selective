@@ -507,7 +507,7 @@ def train_lstm(
         wEmb = numpy.array(wEmbArray)
 
     datasets["imdb"] = (imdb.load_data, imdb.prepare_data)
-    monPath = os.path.join(os.getenv("HOME"), "jan/ProjectsData/phd/DLP/Monsanto/data/trees/20191015c")
+    monPath = os.path.join(os.getenv("HOME"), "jan/ProjectsData/phd/DLP/Monsanto/data/trees/20191024c")
     monData = mon.MonsantoData(os.path.join(monPath, "trees0.zip"), wordEmbMap)
     datasets["mon0"] = (monData.loadData, imdb.prepare_data)
     monData = mon.MonsantoData(os.path.join(monPath, "trees1.zip"), wordEmbMap)
