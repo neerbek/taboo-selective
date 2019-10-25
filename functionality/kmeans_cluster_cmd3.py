@@ -164,7 +164,7 @@ print("Using randomSeed: {}".format(randomSeed))
 rng = RandomState(randomSeed)
 
 print(len(lines), len(lines2))
-kutil.get_base_accuracy(lines, "train acc").report()
+kutil.get_base_accuracy(lines, "train acc (orig model on embeddings)").report()
 
 if featureDropCount > 0:
     perm = rng.permutation(a1.shape[1])
