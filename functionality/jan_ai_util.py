@@ -7,10 +7,18 @@ Created on November 3, 2017
 """
 
 import numpy  # type: ignore
+from numpy.random import RandomState  # type: ignore
 import theano  # type: ignore
 
 import ai_util
 import confusion_matrix
+
+def addNoise(npArray, rng=RandomState(), noiseFactor=None):
+    if noiseFactor is None:
+        noiseFactor = 1 / npArray.shape[1]
+    tmp = npArray + ((rng.rand(npArray.shape[0], npArray.shape[1]) - 0.5) * noiseFactor)
+    tmp = tmp.astype(dtype=theano.config.floatX)
+    return tmp
 
 def addBiasColumn(npArray):
     tmp = numpy.ones(shape=(npArray.shape[0], npArray.shape[1] + 1))

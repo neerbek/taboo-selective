@@ -9,7 +9,7 @@ Trains a RNN flat model on input list of trees and embeddings
 """
 import sys
 from numpy.random import RandomState  # type: ignore
-
+import numpy as np
 import ai_util
 import jan_ai_util
 import rnn_model.rnn
@@ -41,7 +41,8 @@ filePrefix = "save"
 learnRate = 0.5
 momentum = 0.0
 featureDropCount = 0
-
+dataAugmentCount = 0
+dataAugmentFactor = None
 timers = jan_ai_util.Timers()
 
 
@@ -49,7 +50,8 @@ def syntax():
     print("""syntax: kmeans_cluster_cmd3.py
 -inputfile <filename> | -inputdevfile <filename> | -extradata <file> |-retain_probability <float> |
 -batchSize <int> | -randomSeed <int> | -hiddenLayerSize <int> | -numberOfHiddenLayers <int> |
--nEpochs <int> | -learnRate <float> | -momentum <float> | -trainReportFrequency <int> |
+-nEpochs <int> | -learnRate <float> | -momentum <float> | -L1param <float> | -L2param <float> |
+-dataAugmentCount <int> | -dataAugmentFactor <float> | -trainReportFrequency <int> |
 -validationFrequency <int> | -inputmodel <filename> | filePrefix <string> | -runOnly
 -h | --help | -?
 
@@ -68,6 +70,8 @@ def syntax():
 -momentum - momentum for gradient (with momentum) learner
 -L1param - weight of L1 regularization
 -L2param - weight of L1 regularization
+-dataAugmentCount - number of times to increase data by add a noisy version
+-dataAugmentFactor - multiplicative factor for noise (default uniform 0..1 distributed)
 
 -featureDropCount - number of random features to drop (set to 0)
 -trainReportFrequency - number of minibatches to do before outputting progress on training set
@@ -130,6 +134,10 @@ while i < argn:
         trainParam.L1param = float(arg)
     elif setting == '-L2param':
         trainParam.L2param = float(arg)
+    elif setting == '-dataAugmentCount':
+        dataAugmentCount = int(arg)
+    elif setting == '-dataAugmentFactor':
+        dataAugmentFactor = float(arg)
     else:
         # expected option with no argument
         if setting == '-help':
@@ -177,11 +185,26 @@ if featureDropCount > 0:
 
 trainParam.X = jan_ai_util.addBiasColumn(a1)  # add 1 bias column, not really needed, but ...
 trainParam.valX = jan_ai_util.addBiasColumn(a2)  # add 1 bias column, not really needed, but ...
-
+if dataAugmentCount > 0:
+    tmpX = trainParam.X
+    tmpValX = trainParam.valX
+    for i in range(dataAugmentCount):
+        tmpX = np.concatenate((tmpX, jan_ai_util.addNoise(trainParam.X, rng, noiseFactor=dataAugmentFactor)), axis=0)
+        tmpValX = np.concatenate((tmpValX, jan_ai_util.addNoise(trainParam.valX, rng, noiseFactor=dataAugmentFactor)), axis=0)
+    trainParam.X = tmpX
+    trainParam.valX = tmpValX
 
 # format y to 2 class "softmax"
 trainParam.Y = jan_ai_util.lines2multiclassification(lines, classes=[0, 4])
 trainParam.valY = jan_ai_util.lines2multiclassification(lines2, classes=[0, 4])
+if dataAugmentCount > 0:
+    tmpY = trainParam.Y
+    tmpValY = trainParam.valY
+    for i in range(dataAugmentCount):
+        tmpY = np.concatenate((tmpY, trainParam.Y), axis=0)
+        tmpValY = np.concatenate((tmpValY, trainParam.valY), axis=0)
+    trainParam.Y = tmpY
+    trainParam.valY = tmpValY
 
 trainParam.learner = rnn_model.learn.GradientDecentWithMomentumLearner(lr=learnRate, mc=momentum)
 
